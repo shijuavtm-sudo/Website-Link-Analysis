@@ -135,3 +135,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 ```
+### Run the Application
+```
+uvicorn app.main:app --reload --host 0.0.0.0 --port 4000
+```
+Url:: http://localhost:4000
