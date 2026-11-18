@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Website Analyzer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f4f6;
+            margin: 0;
+            padding: 30px;
+            color: #222;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .search-box {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 13px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        button {
+            padding: 13px 25px;
+            border: none;
+            background: #2563eb;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            box-shadow: 0 2px 8px #0000000d;
+            overflow-wrap: anywhere;
+        }
+
+        .card h2 {
+            color: #2563eb;
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        .item {
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 6px;
+        }
+
+        .key {
+            font-weight: bold;
+            text-transform: capitalize;
+            margin-bottom: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 25px;
+            display: none;
+        }
+
+        .error {
+            color: #dc2626;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .search-box {
+                flex-direction: column;
+            }
+
+            body {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI Website Link Analyzer</h1>
+            <p>Analyze business, competitors and SEO using AI</p>
+        </div>
+
+        <div class="search-box">
+            <input
+                type="url"
+                id="websiteUrl"
+                placeholder="Enter website URL (https://example.com)"
+                required
+            >
+            <button id="analyzeBtn" onclick="analyzeWebsite()">Analyze</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <h3>Analyzing website...</h3>
+            <p>Please wait while AI processes the website.</p>
+        </div>
+
+        <div id="error" class="error"></div>
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        async function analyzeWebsite() {
+            const url = document.getElementById("websiteUrl").value.trim();
+            const resultDiv = document.getElementById("result");
+            const loading = document.getElementById("loading");
+            const errorDiv = document.getElementById("error");
+            const button = document.getElementById("analyzeBtn");
+
+            resultDiv.replaceChildren();
+            errorDiv.textContent = "";
+
+            if (!url) {
+                errorDiv.textContent = "Please enter a website URL.";
+                return;
+            }
+
+            button.disabled = true;
+            loading.style.display = "block";
+
+            try {
+                const response = await fetch("/link-analysis", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ url })
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || "Analysis failed");
+                }
+
+                displayResults(data);
+            } catch (error) {
+                errorDiv.textContent = error.message;
+            } finally {
+                loading.style.display = "none";
+                button.disabled = false;
+            }
+        }
+
+        function renderValue(value) {
+            if (value === null || value === undefined) {
+                return document.createTextNode("Not available");
+            }
+
+            if (typeof value !== "object") {
+                return document.createTextNode(String(value));
+            }
+
+            const container = document.createElement("div");
+
+            if (Array.isArray(value)) {
+                value.forEach(item => {
+                    const element = document.createElement("div");
+                    element.className = "item";
+                    element.appendChild(renderValue(item));
+                    container.appendChild(element);
+                });
+
+                return container;
+            }
+
+            Object.entries(value).forEach(([key, item]) => {
+                const element = document.createElement("div");
+                element.className = "item";
+
+                const heading = document.createElement("div");
+                heading.className = "key";
+                heading.textContent = key.replaceAll("_", " ");
+
+                element.appendChild(heading);
+                element.appendChild(renderValue(item));
+                container.appendChild(element);
+            });
+
+            return container;
+        }
+
+        function displayResults(data) {
+            const resultDiv = document.getElementById("result");
+
+            const brandCard = document.createElement("div");
+            brandCard.className = "card";
+
+            const brandTitle = document.createElement("h2");
+            brandTitle.textContent = "Website Information";
+
+            brandCard.appendChild(brandTitle);
+            brandCard.appendChild(renderValue({
+                website: data.website,
+                brand: data.brand
+            }));
+            resultDiv.appendChild(brandCard);
+
+            const sections = [
+                ["competitor_analysis", "1. Competitor vs Brand Analysis"],
+                ["target_search_queries", "2. Top 5 Target Search Queries"],
+                ["seo_improvements", "3. SEO Improvements"],
+                ["top_services", "4. Top 5 Services"],
+                ["target_audience", "5. Target Audience"]
+            ];
+
+            sections.forEach(([key, title]) => {
+                const card = document.createElement("div");
+                card.className = "card";
+
+                const heading = document.createElement("h2");
+                heading.textContent = title;
+                card.appendChild(heading);
+
+                if (
+                    data.analysis &&
+                    Object.prototype.hasOwnProperty.call(data.analysis, key)
+                ) {
+                    card.appendChild(renderValue(data.analysis[key]));
+                } else {
+                    card.appendChild(document.createTextNode("No data available"));
+                }
+
+                resultDiv.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
